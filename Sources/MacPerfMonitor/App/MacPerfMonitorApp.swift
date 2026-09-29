@@ -451,7 +451,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     let loginItemManager = LoginItemManager()
     private let gitHubStarPrompt = GitHubStarPrompt()
     let fullDiskAccessManager = FullDiskAccessManager()
-    let updateController = UpdateController()
     let monitorSelection = MonitorSelection()
     let groupStore = ProcessGroupStore.shared
     let menuBarConfiguration = CombinedMenuBarConfiguration()
@@ -533,7 +532,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         // compact read-out strip, sampling gates, and window-opening router.
         let combinedStatusItem = CombinedStatusItemController(
             model: model, appState: appState, helperManager: helperManager,
-            updateController: updateController,
             components: components, languageManager: languageManager,
             configuration: menuBarConfiguration,
             notchDisplay: notchDisplayController)
@@ -648,14 +646,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         helperManager.attach(to: model)
         appState.helperPromptPending = helperManager.shouldOfferFirstRunPrompt
 
-        // Before Sparkle installs an update it replaces the app bundle but knows
-        // nothing about our root LaunchDaemon. Stop the helper first so the new
-        // binary replaces a stopped one and is demand-launched fresh (parity with
-        // the pkg installer's preinstall).
-        updateController.onWillInstallUpdate = { [weak self] in
-            self?.helperManager.stopForUpdate()
-        }
-
         // Offer "open at login" on first run too. If the helper prompt is going
         // to show first, ContentView arms this once that one is dismissed (the
         // two are sequenced so they never present together); otherwise arm it now.
@@ -663,12 +653,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
         if !appState.helperPromptPending {
             appState.loginItemPromptPending = loginItemManager.shouldOfferFirstRunPrompt
         }
-
-        // Pull the latest signed catalogs (diagnostic checks + the process glossary)
-        // so the deep dive and detail view show the freshest data; both fall back to
-        // their bundled copy on any failure.
-        CheckCatalogStore.shared.refreshInBackground()
-        ProcessGlossaryStore.shared.refreshInBackground()
 
         // First run (or first run after updating to a build with the setup
         // wizard): surface the wizard. New users get the education screens plus
@@ -684,17 +668,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
             presentMainWindowAtLaunch()
         }
 
-        // Check for updates on every cold start (silent unless one is available),
-        // and again whenever the Mac wakes — a menubar app can stay running across
-        // many sleep/wake cycles, so wake is the practical "new session" moment.
-        // The 24-hour periodic check is handled by Sparkle's own scheduler
-        // (SUEnableAutomaticChecks + SUScheduledCheckInterval in Info.plist).
-        DispatchQueue.main.async { [updateController] in
-            updateController.checkInBackground()
-        }
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self, selector: #selector(systemDidWake(_:)),
-            name: NSWorkspace.didWakeNotification, object: nil)
+        // Fork: no auto-update. Sparkle and its launch/wake/24h appcast checks are
+        // removed; the app makes no update requests of any kind.
     }
 
     /// A second copy of the app was launched and handed off to us. Surface the
@@ -747,12 +722,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     /// `terminateIfNothingLeftToDo`, which knows about both.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
-    }
-
-    /// The Mac woke from sleep: run a silent update check (no UI unless an update
-    /// is found). Coalesced by Sparkle if a check is already in flight.
-    @objc private func systemDidWake(_ note: Notification) {
-        updateController.checkInBackground()
     }
 
     /// Guards the one-shot quit teardown so the deferred `.terminateNow` reply

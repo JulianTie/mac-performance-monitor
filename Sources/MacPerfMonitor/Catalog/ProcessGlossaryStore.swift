@@ -32,12 +32,6 @@ final class ProcessGlossaryStore: ObservableObject {
     var version: Int { glossary.version }
     var entryCount: Int { glossary.entries.count }
 
-    private let glossaryURL = URL(
-        string: "https://raw.githubusercontent.com/Zesty0wl/mac-performance-monitor"
-            + "/main/glossary/glossary.json")!
-    private let signatureURL = URL(
-        string: "https://raw.githubusercontent.com/Zesty0wl/mac-performance-monitor"
-            + "/main/glossary/glossary.json.sig")!
     private var inFlight: Task<Void, Never>?
 
     init() {
@@ -72,27 +66,9 @@ final class ProcessGlossaryStore: ObservableObject {
 
     func refreshInBackground() { Task { await refresh() } }
 
-    private func performFetch() async {
-        do {
-            let (data, dResp) = try await URLSession.shared.data(from: glossaryURL)
-            let (sigData, sResp) = try await URLSession.shared.data(from: signatureURL)
-            guard (dResp as? HTTPURLResponse)?.statusCode == 200,
-                (sResp as? HTTPURLResponse)?.statusCode == 200,
-                CatalogSigning.verify(
-                    data, signatureBase64: String(decoding: sigData, as: UTF8.self)),
-                let fetched = try? JSONDecoder().decode(ProcessGlossary.self, from: data)
-            else { return }
-            let bundledVersion = Self.bundledSeed()?.version ?? 0
-            let newer = fetched.version > glossary.version
-            let switchingFromBundled = source == .bundled && fetched.version >= bundledVersion
-            guard newer || switchingFromBundled else { return }
-            glossary = fetched
-            source = .server
-            if let url = cacheURL { try? data.write(to: url, options: .atomic) }
-        } catch {
-            // Network/parse failure → keep the cached/bundled glossary.
-        }
-    }
+    /// Fork: remote glossary updates are disabled, no request leaves the machine.
+    /// The app keeps the bundled glossary (or a copy cached by an earlier build).
+    private func performFetch() async {}
 
     // MARK: - Bundled seed + cache
 

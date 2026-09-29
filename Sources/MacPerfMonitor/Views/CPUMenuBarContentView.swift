@@ -9,7 +9,6 @@ import SwiftUI
 struct CPUMenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuLists: MenuListsModel
-    @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
 
     /// Called after an action so the host (the AppKit popover) can dismiss.
@@ -152,10 +151,6 @@ struct CPUMenuBarContentView: View {
                 dismiss()
                 showStandardAboutPanel()
             }
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
-                checkForUpdates()
-            }
-            .disabled(!updateController.canCheckForUpdates)
             MenuActionButton(title: "Quit \(AppInfo.displayName)", systemImage: "power") {
                 NSApp.terminate(nil)
             }
@@ -183,14 +178,6 @@ struct CPUMenuBarContentView: View {
         // `NSApp.sendAction("showSettingsWindow:")` from a popover with no key
         // window, which silently did nothing.
         NotificationCenter.default.post(name: .macperfmonitorShowSettings, object: nil)
-    }
-
-    /// Sparkle presents its own update window, so this needs no SwiftUI scene —
-    /// just dismiss the popover and bring the app forward so that window is key.
-    private func checkForUpdates() {
-        dismiss()
-        NSApp.activate(ignoringOtherApps: true)
-        updateController.checkForUpdates()
     }
 }
 

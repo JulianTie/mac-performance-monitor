@@ -156,30 +156,6 @@ else
   echo "warning: $HELPER_BIN not found; bundling without the privileged helper" >&2
 fi
 
-# --- Sparkle auto-update framework -----------------------------------------
-# Copy the Sparkle.framework that SPM built next to the executable into the
-# bundle's Frameworks dir, and add the rpath the loader needs to find it. The
-# SPM-built binary links @rpath/Sparkle.framework/Versions/B/Sparkle but only
-# carries an @loader_path rpath (= Contents/MacOS), so without this the framework
-# would not resolve at launch. Signed by Scripts/sign.sh (inside-out, before the
-# app). Stripping happens never — the whole framework (incl. Autoupdate, the
-# Updater.app progress UI, and the XPC services) is required at runtime.
-SPARKLE_FW="$BIN_DIR/Sparkle.framework"
-if [[ ! -d "$SPARKLE_FW" ]]; then
-  SPARKLE_FW="ThirdParty/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
-fi
-if [[ -d "$SPARKLE_FW" ]]; then
-  mkdir -p "$APP/Contents/Frameworks"
-  cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/"
-  install_name_tool -add_rpath "@executable_path/../Frameworks" \
-    "$APP/Contents/MacOS/$EXECUTABLE_NAME" 2>/dev/null \
-    || echo "note: @executable_path/../Frameworks rpath already present" >&2
-  echo "Bundled Sparkle.framework"
-else
-  echo "error: Sparkle.framework is missing; the app cannot launch without it." >&2
-  exit 1
-fi
-
 # --- Icons -----------------------------------------------------------------
 # The two PNGs in the repo root are the single source of truth. The app icon is
 # compiled into a multi-resolution .icns (referenced by CFBundleIconFile); the

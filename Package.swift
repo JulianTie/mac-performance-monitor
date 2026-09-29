@@ -84,7 +84,6 @@ let package = Package(
             dependencies: [
                 "MacPerfMonitorCore",
                 "MacPerfMonitorIPC",
-                "Sparkle",
             ]
             // No `resources:` for localization. The String Catalog lives at
             // Localizations/Localizable.xcstrings, outside any target, because
@@ -94,17 +93,6 @@ let package = Package(
             // xcstringstool, which is where the shipped app reads it from.
         ),
 
-        // In-app auto-update for the directly-distributed (non-App-Store) build.
-        // Sparkle handles EdDSA-signed appcast updates, the privileged install to
-        // /Applications, the atomic swap, and the relaunch. Vendored as a local
-        // binary target (ThirdParty/Sparkle.xcframework) rather than a remote SPM
-        // dependency so clean builds never depend on a network artifact download.
-        // Update by replacing the xcframework + Scripts/sparkle-tools from the
-        // matching Sparkle-for-Swift-Package-Manager release.
-        .binaryTarget(
-            name: "Sparkle",
-            path: "ThirdParty/Sparkle.xcframework"
-        ),
         .binaryTarget(
             name: "llama",
             url:

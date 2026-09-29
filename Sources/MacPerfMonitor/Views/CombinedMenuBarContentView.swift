@@ -20,7 +20,6 @@ struct CombinedMenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var configuration: CombinedMenuBarConfiguration
-    @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
     @EnvironmentObject private var components: AppComponentsManager
     @EnvironmentObject private var notchDisplay: NotchDisplayController
@@ -265,12 +264,6 @@ struct CombinedMenuBarContentView: View {
                     dismiss()
                     showStandardAboutPanel()
                 }
-                Button("Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
-                    dismiss()
-                    NSApp.activate(ignoringOtherApps: true)
-                    updateController.checkForUpdates()
-                }
-                .disabled(!updateController.canCheckForUpdates)
                 Divider()
                 Button("Quit \(AppInfo.displayName)", systemImage: "power") {
                     NSApp.terminate(nil)

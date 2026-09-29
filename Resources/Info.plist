@@ -82,14 +82,6 @@
 	<string>NSApplication</string>
 	<key>NSRemovableVolumesUsageDescription</key>
 	<string>The Disk Map can measure what is using space on external drives you choose to scan.</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<key>SUFeedURL</key>
-	<string>https://github.com/Zesty0wl/mac-performance-monitor/releases/latest/download/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>HuKDMlLqkj1/pq6IuuIBLBAo0XVdRVCA8fdABu3Kh2M=</string>
-	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

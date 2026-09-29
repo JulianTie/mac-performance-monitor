@@ -12,7 +12,6 @@ struct NetworkMenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuLists: MenuListsModel
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
 
     /// Shared with `SamplerModel`/Settings: whether per-app attribution is on.
@@ -164,10 +163,6 @@ struct NetworkMenuBarContentView: View {
                 dismiss()
                 showStandardAboutPanel()
             }
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
-                checkForUpdates()
-            }
-            .disabled(!updateController.canCheckForUpdates)
             MenuActionButton(title: "Quit \(AppInfo.displayName)", systemImage: "power") {
                 NSApp.terminate(nil)
             }
@@ -187,12 +182,6 @@ struct NetworkMenuBarContentView: View {
         dismiss()
         NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .macperfmonitorShowSettings, object: nil)
-    }
-
-    private func checkForUpdates() {
-        dismiss()
-        NSApp.activate(ignoringOtherApps: true)
-        updateController.checkForUpdates()
     }
 }
 

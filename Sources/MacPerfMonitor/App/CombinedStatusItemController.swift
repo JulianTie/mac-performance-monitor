@@ -35,7 +35,6 @@ final class CombinedStatusItemController: NSObject {
     private let model: SamplerModel
     private let appState: AppState
     private let helperManager: HelperManager
-    private let updateController: UpdateController
     private let components: AppComponentsManager
     private let languageManager: AppLanguageManager
     private let configuration: CombinedMenuBarConfiguration
@@ -60,14 +59,13 @@ final class CombinedStatusItemController: NSObject {
 
     init(
         model: SamplerModel, appState: AppState, helperManager: HelperManager,
-        updateController: UpdateController, components: AppComponentsManager,
+        components: AppComponentsManager,
         languageManager: AppLanguageManager,
         configuration: CombinedMenuBarConfiguration, notchDisplay: NotchDisplayController
     ) {
         self.model = model
         self.appState = appState
         self.helperManager = helperManager
-        self.updateController = updateController
         self.components = components
         self.languageManager = languageManager
         self.configuration = configuration
@@ -244,7 +242,6 @@ final class CombinedStatusItemController: NSObject {
             .environmentObject(self.model.menuLists)
             .environmentObject(self.appState)
             .environmentObject(self.helperManager)
-            .environmentObject(self.updateController)
             .environmentObject(self.menuClock)
             .environmentObject(self.components)
             .environmentObject(self.configuration)

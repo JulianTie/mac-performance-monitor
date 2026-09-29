@@ -23,13 +23,6 @@ final class CheckCatalogStore: ObservableObject {
     var version: Int { manifest.version }
     var checkCount: Int { manifest.checks.count }
 
-    private let manifestURL = URL(
-        string: "https://raw.githubusercontent.com/Zesty0wl/mac-performance-monitor"
-            + "/main/checks/manifest.json")!
-    private let signatureURL = URL(
-        string: "https://raw.githubusercontent.com/Zesty0wl/mac-performance-monitor"
-            + "/main/checks/manifest.json.sig")!
-
     private var inFlight: Task<Void, Never>?
 
     init() { loadCached() }
@@ -51,29 +44,9 @@ final class CheckCatalogStore: ObservableObject {
     /// Fire-and-forget refresh, for app launch.
     func refreshInBackground() { Task { await refresh() } }
 
-    private func performFetch() async {
-        do {
-            let (manifestData, mResp) = try await URLSession.shared.data(from: manifestURL)
-            let (sigData, sResp) = try await URLSession.shared.data(from: signatureURL)
-            guard (mResp as? HTTPURLResponse)?.statusCode == 200,
-                (sResp as? HTTPURLResponse)?.statusCode == 200,
-                CatalogSigning.verify(
-                    manifestData, signatureBase64: String(decoding: sigData, as: UTF8.self)),
-                let fetched = try? JSONDecoder().decode(CheckManifest.self, from: manifestData)
-            else { return }
-            // Adopt a strictly newer version always; adopt an equal version only to
-            // switch off the built-in pack onto the (authoritative) server copy.
-            let newer = fetched.version > manifest.version
-            let switchingFromBuiltIn =
-                source == .builtIn && fetched.version >= CheckCatalog.builtIn.version
-            guard newer || switchingFromBuiltIn else { return }
-            manifest = fetched
-            source = .server
-            if let url = cacheURL { try? manifestData.write(to: url, options: .atomic) }
-        } catch {
-            // Network/parse failure → keep the current (cached or built-in) catalog.
-        }
-    }
+    /// Fork: remote catalog updates are disabled, no request leaves the machine.
+    /// The app keeps the built-in pack (or a copy cached by an earlier build).
+    private func performFetch() async {}
 
     // MARK: - Cache
 

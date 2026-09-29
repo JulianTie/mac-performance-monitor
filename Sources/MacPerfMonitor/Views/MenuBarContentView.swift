@@ -7,7 +7,6 @@ import SwiftUI
 struct MenuBarContentView: View {
     @EnvironmentObject private var model: SamplerModel
     @EnvironmentObject private var menuLists: MenuListsModel
-    @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var menuClock: MenuClock
     @EnvironmentObject private var components: AppComponentsManager
     @Environment(\.openWindow) private var openWindow
@@ -155,12 +154,6 @@ struct MenuBarContentView: View {
             MenuActionButton(title: "About \(AppInfo.displayName)", systemImage: "info.circle") {
                 showStandardAboutPanel()
             }
-
-            MenuActionButton(title: "Check for Updates\u{2026}", systemImage: "arrow.down.circle") {
-                updateController.checkForUpdates()
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            .disabled(!updateController.canCheckForUpdates)
 
             MenuActionButton(title: "Quit \(AppInfo.displayName)", systemImage: "power") {
                 NSApp.terminate(nil)
