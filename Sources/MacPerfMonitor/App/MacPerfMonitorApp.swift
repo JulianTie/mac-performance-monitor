@@ -1,4 +1,3 @@
-import AppIntents
 import AppKit
 import Combine
 import MacPerfMonitorCore
@@ -147,11 +146,6 @@ struct MacPerfMonitorApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commands {
-            CommandMenu("Ask") {
-                Button("Ask About This Mac (Preview)") {
-                    WindowOpenBridge.shared.open(id: WindowID.ask)
-                }
-            }
             CommandMenu("Network") {
                 Button("Network Scan") {
                     AppLog.ui.notice("Network Scan command invoked")
@@ -179,21 +173,6 @@ struct MacPerfMonitorApp: App {
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             }
         }
-
-        Window("Ask About This Mac (Preview)", id: WindowID.ask) {
-            LocaleRootView(languageManager: appDelegate.languageManager) {
-                AskPreviewView(
-                    model: appDelegate.askPreviewModel,
-                    openEvidence: { evidence, topic in
-                        appDelegate.openAskEvidence(evidence, topic: topic)
-                    },
-                    openNextStep: { step, evidence in
-                        appDelegate.openAskNextStep(step, evidence: evidence)
-                    })
-            }
-        }
-        .defaultSize(width: 820, height: 660)
-        .defaultLaunchBehavior(.suppressed)
 
         Settings {
             LocaleRootView(languageManager: appDelegate.languageManager) {
@@ -308,7 +287,6 @@ enum AppInfo {
 /// Stable scene identifiers used with `openWindow`.
 enum WindowID {
     static let main = "main"
-    static let ask = "ask-preview"
     static let onboarding = "onboarding"
     static let inspector = "inspector"
     static let openFiles = "open-files"
@@ -422,24 +400,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     @preconcurrency UNUserNotificationCenterDelegate
 {
     let model = SamplerModel()
-    lazy var askPreviewModel = AskPreviewModel(
-        readReports: { [weak self] in
-            guard let self else { return [] }
-            var reports = try await self.model.readAskReports()
-            if let scan = DiskMapModel.shared.snapshot, let analysis = DiskMapModel.shared.analysis,
-                let index = reports.firstIndex(where: { $0.topic == .disk })
-            {
-                reports[index].includeDiskMap(scan, analysis: analysis)
-            }
-            return reports
-        },
-        readData: { [weak self] call, capturedAt, process in
-            guard let self else { throw AskInvestigationError.unavailable }
-            return try await self.model.readAskData(call, at: capturedAt, process: process)
-        })
-    lazy var monitorIntentRuntime = MonitorIntentRuntime(read: { [model] topic in
-        try await model.readAskReport(topic: topic)
-    })
     let components = AppComponentsManager()
     let languageManager = AppLanguageManager()
     let alertSettings = AlertSettings()
@@ -467,52 +427,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate,
     private let presenceController = PresenceController()
     private var cancellables = Set<AnyCancellable>()
 
-    func openAskEvidence(_ evidence: AskEvidence?, topic: AskTopic) {
-        if let identity = evidence?.processIdentity {
-            appState.navigationTarget = identity
-            appState.requestedMainTab = .processes
-        } else {
-            switch topic {
-            case .overview, .cpu: appState.requestedMainTab = .dashboard
-            case .memory: appState.requestedMainTab = .processes
-            case .disk:
-                appState.requestedMainTab = .diskUsage
-                appState.showDiskMap = true
-            case .network: appState.requestedMainTab = .network
-            }
-        }
-        WindowOpenBridge.shared.open(id: WindowID.main)
-    }
-
-    func openAskNextStep(_ step: AskNextStep, evidence: AskEvidence?) {
-        switch step {
-        case .inspectProcesses: openAskEvidence(evidence, topic: .memory)
-        case .openDiskMap: openAskEvidence(nil, topic: .disk)
-        case .openNetwork: openAskEvidence(nil, topic: .network)
-        case .inspectDiskActivity:
-            appState.requestedMainTab = .diskUsage
-            appState.showDiskMap = false
-            WindowOpenBridge.shared.open(id: WindowID.main)
-        case .observe: break
-        }
-    }
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppLog.ui.notice("app launched (menubar)")
         gitHubStarPrompt.recordLaunch()
-        let intentRuntime = monitorIntentRuntime
-        AppDependencyManager.shared.add(dependency: intentRuntime)
-        MonitorPreviewShortcuts.updateAppShortcutParameters()
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { _ in
-                if !UserDefaults.standard.bool(forKey: AskPreviewPreferences.enabledKey)
-                    || !UserDefaults.standard.bool(forKey: AskPreviewPreferences.siriKey)
-                {
-                    intentRuntime.clear()
-                }
-            }
-            .store(in: &cancellables)
 
         // Per-app network tracking now uses a cheap one-shot nettop, so it's on by
         // default; a registered default makes the launch read below (and @AppStorage
@@ -990,15 +907,6 @@ struct MainWindowGate: View {
             }
         }
         .toolbar {
-            ToolbarItem(id: "main.ask-preview", placement: .automatic) {
-                Button {
-                    WindowOpenBridge.shared.open(id: WindowID.ask)
-                } label: {
-                    Image(systemName: "sparkles")
-                }
-                .help("Ask About This Mac (Preview)")
-                .accessibilityLabel("Ask About This Mac (Preview)")
-            }
             ToolbarItem(id: "main.refresh-interval", placement: .automatic) {
                 RefreshIntervalControl()
             }

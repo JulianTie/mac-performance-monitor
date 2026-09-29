@@ -23,6 +23,7 @@
 #                    (what `Xcode > Settings > Accounts` installs) is enough for
 #                    local dev: it chains to Apple (`anchor apple generic`) and
 #                    carries the team in subject.OU.
+#   --no-launch      build, bundle and sign only (used by install-local.sh).
 #
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -35,12 +36,14 @@ CONFIG="debug"
 # repeated "allow access" prompts), and CPU/energy measurements are representative.
 # Ad-hoc builds fail all three, so they must never be used for perf testing.
 SIGN_MODE="auto"
+LAUNCH=1
 for arg in "$@"; do
   case "$arg" in
     --release)               CONFIG="release" ;;
     --debug)                 CONFIG="debug" ;;
     --developer-id|--sign)   SIGN_MODE="identity" ;;
     --adhoc)                 SIGN_MODE="adhoc" ;;
+    --no-launch)             LAUNCH=0 ;;
     *) echo "run.sh: ignoring unknown argument '$arg'" >&2 ;;
   esac
 done
@@ -84,8 +87,6 @@ Scripts/bundle.sh "$CONFIG"
 
 APP="build/Mac Performance Monitor.app"
 HELPER="$APP/Contents/MacOS/MacPerfMonitorHelper"
-INFERENCE="$APP/Contents/MacOS/MacPerfMonitorInference"
-LLAMA="$APP/Contents/Frameworks/llama.framework"
 
 ENTITLEMENTS="Resources/MacPerfMonitor.entitlements"
 
@@ -97,9 +98,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     exit 1
   }
   echo "==> Signing with identity: $IDENTITY"
-  codesign --force --options runtime --sign "$IDENTITY" "$LLAMA"
-  codesign --force --options runtime --identifier "uk.co.bzwrd.macperfmonitor.inference" \
-    --sign "$IDENTITY" "$INFERENCE"
   # Inside out: sign the nested helper before the enclosing app. The helper needs
   # no entitlements (it runs as root); the explicit --identifier makes its code
   # identity "uk.co.bzwrd.macperfmonitor.helper" so it satisfies the app's
@@ -108,25 +106,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
     codesign --force --options runtime \
       --identifier "uk.co.bzwrd.macperfmonitor.helper" \
       --sign "$IDENTITY" "$HELPER"
-  fi
-  # Sparkle.framework must be signed inside-out with the SAME identity before the
-  # app, or hardened-runtime library validation refuses to load it and the app
-  # crashes at launch ("Library not loaded: @rpath/Sparkle.framework"). Mirrors
-  # Scripts/sign.sh; no --timestamp here since local dev needs no notarisation.
-  SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-  if [[ -d "$SPARKLE" ]]; then
-    echo "==> Signing Sparkle.framework (inside-out)"
-    SPARKLE_V="$SPARKLE/Versions/B"
-    for nested in \
-      "$SPARKLE_V/XPCServices/Downloader.xpc" \
-      "$SPARKLE_V/XPCServices/Installer.xpc" \
-      "$SPARKLE_V/Updater.app" \
-      "$SPARKLE_V/Autoupdate"; do
-      if [[ -e "$nested" ]]; then
-        codesign --force --options runtime --sign "$IDENTITY" "$nested"
-      fi
-    done
-    codesign --force --options runtime --sign "$IDENTITY" "$SPARKLE"
   fi
   codesign --force --options runtime \
     --identifier "uk.co.bzwrd.macperfmonitor" \
@@ -150,8 +129,6 @@ if [[ "$SIGN_MODE" == "identity" ]]; then
   fi
 else
   echo "==> Ad-hoc signing (helper coverage will NOT work; pass --developer-id to sign with your cert)"
-  codesign --force --sign - "$LLAMA"
-  codesign --force --identifier "uk.co.bzwrd.macperfmonitor.inference" --sign - "$INFERENCE"
   # NO --options runtime on this path, deliberately. Hardened Runtime turns on
   # library validation, which requires the app and every framework it loads to
   # share a Team ID. An ad-hoc signature carries NO team, and macOS does not treat
@@ -168,25 +145,12 @@ else
   if [[ -f "$HELPER" ]]; then
     codesign --force --identifier "uk.co.bzwrd.macperfmonitor.helper" --sign - "$HELPER"
   fi
-  # Still sign Sparkle inside-out: codesign rejects a bundle that contains
-  # unsigned nested code, and the vendored framework must match the app's
-  # (ad-hoc) signing to keep the bundle seal valid.
-  SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-  if [[ -d "$SPARKLE" ]]; then
-    echo "==> Ad-hoc signing Sparkle.framework (inside-out)"
-    SPARKLE_V="$SPARKLE/Versions/B"
-    for nested in \
-      "$SPARKLE_V/XPCServices/Downloader.xpc" \
-      "$SPARKLE_V/XPCServices/Installer.xpc" \
-      "$SPARKLE_V/Updater.app" \
-      "$SPARKLE_V/Autoupdate"; do
-      if [[ -e "$nested" ]]; then
-        codesign --force --sign - "$nested"
-      fi
-    done
-    codesign --force --sign - "$SPARKLE"
-  fi
   codesign --force --identifier "uk.co.bzwrd.macperfmonitor" --sign - "$APP"
+fi
+
+if [[ "$LAUNCH" -eq 0 ]]; then
+  echo "Signed $APP (not launched)"
+  exit 0
 fi
 
 echo "==> Launching"

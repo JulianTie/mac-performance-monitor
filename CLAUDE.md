@@ -17,6 +17,9 @@ Guidance for Claude Code when working in this repository.
   Info.plist `SU*` keys, "Check for Updates" menu items, launch/wake checks) and
   no remote refresh of the check catalog or process glossary (built-in copies only).
   Do not re-add any of it when merging upstream changes.
-- Remaining network access is user-triggered only: AI model downloads
-  (huggingface.co), IEEE OUI list on a manual LAN scan, the latency ping in the
-  network menu.
+- The "Ask About This Mac" AI feature is removed entirely: Ask window, menus,
+  toolbar button, settings section, Siri/Shortcuts App Intents, the
+  MacPerfMonitorInference worker and the MLX, llama.cpp and swift-transformers
+  dependencies. Do not re-add it.
+- Remaining network access is user-triggered only: IEEE OUI list on the first
+  manual LAN scan, the latency ping in the network menu.
